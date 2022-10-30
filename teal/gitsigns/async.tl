@@ -5,6 +5,7 @@ local record Async
   void: function<A1>   (function(A1)   ): function(A1)
   void: function<A1,A2>(function(A1,A2)): function(A1,A2)
   void: function<A1,A2,A3,A4,R1>(function(A1,A2,A3,A4): R1): function(A1,A2,A3,A4): R1
+  void: function<A1,A2,A3>(function(A1,A2,A3)): function(A1,A2,A3)
   void: function<A1,A2,A3,A4>(function(A1,A2,A3,A4)): function(A1,A2,A3,A4)
 
   wrap: function<A1,A2,R1,R2>   (function(A1,A2,      function(R1,R2)), integer): function(A1,A2): R1,R2

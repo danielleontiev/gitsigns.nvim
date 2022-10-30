@@ -62,7 +62,6 @@ local record M
     on_attach: function(bufnr: integer)
     record watch_gitdir
       enable: boolean
-      interval: integer
       follow_files: boolean
     end
     max_file_length: integer
@@ -256,7 +255,6 @@ M.schema = {
     deep_extend = true,
     default = {
       enable = true,
-      interval = 1000,
       follow_files = true
     },
     description = [[
@@ -267,9 +265,6 @@ M.schema = {
       Fields: ~
         • `enable`:
             Whether the watcher is enabled.
-
-        • `interval`:
-            Interval the watcher waits between polls of the gitdir in milliseconds.
 
         • `follow_files`:
             If a file is moved with `git mv`, switch the buffer to the new location.

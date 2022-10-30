@@ -35,7 +35,7 @@ local record M
   update           : function(bufnr: integer, CacheEntry)
   update_debounced : function(bufnr: integer, CacheEntry)
   on_lines         : function(buf: integer, first: integer, last_orig: integer, last_new: integer): boolean
-  watch_gitdir     : function(bufnr: integer, gitdir: string): vim.loop.FSPollObj
+  watch_gitdir     : function(bufnr: integer, gitdir: string): vim.loop.FSEventObj
   update_cwd_head  : function()
   detach           : function(bufnr: integer, keep_signs: boolean)
   reset_signs      : function()
@@ -348,22 +348,12 @@ local function handle_moved(bufnr: integer, bcache: CacheEntry, old_relpath: str
   end
 end
 
+-- vim.inspect but on one line
+local function inspect1<T>(x: T): string
+  return vim.inspect(x, {indent = '', newline = ' '})
+end
 
-M.watch_gitdir = function(bufnr: integer, gitdir: string): vim.loop.FSPollObj
-  if not config.watch_gitdir.enable then
-    return
-  end
-
-  dprintf('Watching git dir')
-  local w = uv.new_fs_poll(true)
-  w:start(gitdir, config.watch_gitdir.interval, void(function(err: string)
-    local __FUNC__ = 'watcher_cb'
-    if err then
-      dprintf('Git dir update error: %s', err)
-      return
-    end
-    dprint('Git dir update')
-
+local watch_gitdir_handler = debounce_trailing(100, void(function(bufnr: integer)
     local bcache = cache[bufnr]
 
     if not bcache then
@@ -399,17 +389,45 @@ M.watch_gitdir = function(bufnr: integer, gitdir: string): vim.loop.FSPollObj
     bcache.compare_text = nil
 
     M.update(bufnr, bcache)
-  end))
+end))
+
+M.watch_gitdir = function(bufnr: integer, gitdir: string): uv.t.FSEventObj
+  if not config.watch_gitdir.enable then
+    return
+  end
+
+  dprintf('Watching git dir')
+
+  local w = uv.new_fs_event(true)
+
+  w:start(gitdir, {}, function(err: string, filename: string, events: uv.t.FSEventObj.CBEvents)
+    local __FUNC__ = 'watcher_cb'
+    if err then
+      dprintf('Git dir update error: %s', err)
+      return
+    end
+
+    local info = string.format("Git dir update: '%s' %s", filename, inspect1(events))
+
+    if vim.endswith(filename, '.lock') then
+      dprintf("%s (ignoring)", info)
+      return
+    end
+
+    dprint(info)
+
+    watch_gitdir_handler(bufnr)
+  end)
   return w
 end
 
-local cwd_watcher: vim.loop.FSPollObj
+local cwd_watcher: uv.t.FSEventObj
 
 M.update_cwd_head = void(function()
   if cwd_watcher then
     cwd_watcher:stop()
   else
-    cwd_watcher = uv.new_fs_poll(true)
+    cwd_watcher = uv.new_fs_event()
   end
 
   local cwd = vim.loop.cwd()
@@ -445,23 +463,23 @@ M.update_cwd_head = void(function()
     return
   end
 
-  -- Watch .git/HEAD to detect branch changes
-  cwd_watcher:start(
-    towatch,
-    config.watch_gitdir.interval,
-    void(function(err: string)
-      local __FUNC__ = 'cwd_watcher_cb'
-      if err then
-        dprintf('Git dir update error: %s', err)
-        return
-      end
-      dprint('Git cwd dir update')
+  local update_head = debounce_trailing(100, void(function()
+    local new_head = git.get_repo_info(cwd).abbrev_head
+    scheduler()
+    vim.g.gitsigns_head = new_head
+  end))
 
-      local new_head = git.get_repo_info(cwd).abbrev_head
-      scheduler()
-      vim.g.gitsigns_head = new_head
-    end)
-  )
+  -- Watch .git/HEAD to detect branch changes
+  cwd_watcher:start(towatch, {}, function(err: string)
+    local __FUNC__ = 'cwd_watcher_cb'
+    if err then
+      dprintf('Git dir update error: %s', err)
+      return
+    end
+    dprint('Git cwd dir update')
+
+    update_head()
+  end)
 end)
 
 M.reset_signs = function()

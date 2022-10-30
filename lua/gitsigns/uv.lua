@@ -4,6 +4,11 @@ local M = {}
 
 
 
+
+
+
+
+
 local handles = {}
 
 M.handles = handles
@@ -34,17 +39,17 @@ vim.api.nvim_create_autocmd('VimLeavePre', {
    end,
 })
 
-function M.new_timer(longlived)
-   local r = uv.new_timer()
-   handles[#handles + 1] = { r, longlived, debug.traceback() }
-   return r
+local function c(fn)
+   return function(longlived)
+      local r = fn()
+      handles[#handles + 1] = { r, longlived, debug.traceback() }
+      return r
+   end
 end
 
-function M.new_fs_poll(longlived)
-   local r = uv.new_fs_poll()
-   handles[#handles + 1] = { r, longlived, debug.traceback() }
-   return r
-end
+M.new_timer = c(uv.new_timer)
+M.new_fs_poll = c(uv.new_fs_poll)
+M.new_fs_event = c(uv.new_fs_event)
 
 function M.new_pipe(ipc)
    local r = uv.new_pipe(ipc)

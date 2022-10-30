@@ -568,7 +568,6 @@ watch_gitdir                                    *gitsigns-config-watch_gitdir*
       Default: >
         {
           enable = true,
-          interval = 1000,
           follow_files = true
         }
 <
@@ -579,9 +578,6 @@ watch_gitdir                                    *gitsigns-config-watch_gitdir*
       Fields: ~
         • `enable`:
             Whether the watcher is enabled.
-
-        • `interval`:
-            Interval the watcher waits between polls of the gitdir in milliseconds.
 
         • `follow_files`:
             If a file is moved with `git mv`, switch the buffer to the new location.

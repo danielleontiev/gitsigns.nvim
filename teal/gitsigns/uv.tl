@@ -2,6 +2,11 @@ local uv = vim.loop
 
 local record M
   handles: {integer:{uv.Handle, boolean, string}}
+
+  new_timer: function(boolean): uv.Timer
+  new_fs_poll: function(boolean): uv.FSPollObj
+  new_fs_event: function(boolean): uv.FSEventObj
+  t: vim.loop
 end
 
 local handles: {integer:{uv.Handle, boolean, string}}= {}
@@ -34,17 +39,17 @@ vim.api.nvim_create_autocmd('VimLeavePre', {
   end
 })
 
-function M.new_timer(longlived: boolean): uv.Timer
-  local r = uv.new_timer()
-  handles[#handles+1] = {r as uv.Handle, longlived, debug.traceback()}
-  return r
+local function c<T>(fn: function(): T): function(boolean): T
+  return function(longlived: boolean): T
+    local r = fn()
+    handles[#handles+1] = {r as uv.Handle, longlived, debug.traceback()}
+    return r
+  end
 end
 
-function M.new_fs_poll(longlived: boolean): uv.FSPollObj
-  local r = uv.new_fs_poll()
-  handles[#handles+1] = {r as uv.Handle, longlived, debug.traceback()}
-  return r
-end
+M.new_timer = c(uv.new_timer)
+M.new_fs_poll = c(uv.new_fs_poll)
+M.new_fs_event = c(uv.new_fs_event)
 
 function M.new_pipe(ipc: boolean): uv.Pipe
   local r = uv.new_pipe(ipc)

@@ -9,7 +9,7 @@ local record M
     hunks         : {Hunk}
     force_next_update: boolean
     staged_diffs  : {Hunk}
-    gitdir_watcher : vim.loop.FSPollObj -- Timer object watching the gitdir
+    gitdir_watcher: vim.loop.FSEventObj -- Timer object watching the gitdir
     git_obj       : GitObj
     commit        : string
 

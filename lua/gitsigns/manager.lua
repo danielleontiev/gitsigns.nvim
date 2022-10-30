@@ -349,57 +349,75 @@ local function handle_moved(bufnr, bcache, old_relpath)
 end
 
 
+local function inspect1(x)
+   return vim.inspect(x, { indent = '', newline = ' ' })
+end
+
+local watch_gitdir_handler = debounce_trailing(100, void(function(bufnr)
+   local bcache = cache[bufnr]
+
+   if not bcache then
+
+
+
+      dprint('Has detached, aborting')
+      return
+   end
+
+   local git_obj = bcache.git_obj
+
+   git_obj.repo:update_abbrev_head()
+
+   scheduler()
+   Status:update(bufnr, { head = git_obj.repo.abbrev_head })
+
+   local was_tracked = git_obj.object_name ~= nil
+   local old_relpath = git_obj.relpath
+
+   if not git_obj:update_file_info() then
+      dprint('File not changed')
+      return
+   end
+
+   if config.watch_gitdir.follow_files and was_tracked and not git_obj.object_name then
+
+
+      handle_moved(bufnr, bcache, old_relpath)
+   end
+
+
+   bcache.compare_text = nil
+
+   M.update(bufnr, bcache)
+end))
+
 M.watch_gitdir = function(bufnr, gitdir)
    if not config.watch_gitdir.enable then
       return
    end
 
    dprintf('Watching git dir')
-   local w = uv.new_fs_poll(true)
-   w:start(gitdir, config.watch_gitdir.interval, void(function(err)
+
+   local w = uv.new_fs_event(true)
+
+   w:start(gitdir, {}, function(err, filename, events)
       local __FUNC__ = 'watcher_cb'
       if err then
          dprintf('Git dir update error: %s', err)
          return
       end
-      dprint('Git dir update')
 
-      local bcache = cache[bufnr]
+      local info = string.format("Git dir update: '%s' %s", filename, inspect1(events))
 
-      if not bcache then
-
-
-
-         dprint('Has detached, aborting')
+      if vim.endswith(filename, '.lock') then
+         dprintf("%s (ignoring)", info)
          return
       end
 
-      local git_obj = bcache.git_obj
+      dprint(info)
 
-      git_obj.repo:update_abbrev_head()
-
-      scheduler()
-      Status:update(bufnr, { head = git_obj.repo.abbrev_head })
-
-      local was_tracked = git_obj.object_name ~= nil
-      local old_relpath = git_obj.relpath
-
-      if not git_obj:update_file_info() then
-         dprint('File not changed')
-         return
-      end
-
-      if config.watch_gitdir.follow_files and was_tracked and not git_obj.object_name then
-
-
-         handle_moved(bufnr, bcache, old_relpath)
-      end
-
-
-      bcache.compare_text = nil
-
-      M.update(bufnr, bcache)
-   end))
+      watch_gitdir_handler(bufnr)
+   end)
    return w
 end
 
@@ -409,7 +427,7 @@ M.update_cwd_head = void(function()
    if cwd_watcher then
       cwd_watcher:stop()
    else
-      cwd_watcher = uv.new_fs_poll(true)
+      cwd_watcher = uv.new_fs_event()
    end
 
    local cwd = vim.loop.cwd()
@@ -445,11 +463,14 @@ M.update_cwd_head = void(function()
       return
    end
 
+   local update_head = debounce_trailing(100, void(function()
+      local new_head = git.get_repo_info(cwd).abbrev_head
+      scheduler()
+      vim.g.gitsigns_head = new_head
+   end))
 
-   cwd_watcher:start(
-   towatch,
-   config.watch_gitdir.interval,
-   void(function(err)
+
+   cwd_watcher:start(towatch, {}, function(err)
       local __FUNC__ = 'cwd_watcher_cb'
       if err then
          dprintf('Git dir update error: %s', err)
@@ -457,11 +478,8 @@ M.update_cwd_head = void(function()
       end
       dprint('Git cwd dir update')
 
-      local new_head = git.get_repo_info(cwd).abbrev_head
-      scheduler()
-      vim.g.gitsigns_head = new_head
-   end))
-
+      update_head()
+   end)
 end)
 
 M.reset_signs = function()

@@ -464,8 +464,6 @@ global record vim
     new_timer: function(): Timer
     timer_start: function(Timer, integer, integer, function()): integer | string
 
-    new_fs_event: function()
-
     record FSPollObj
       userdata
       is_closing: function(FSPollObj): boolean | string
@@ -475,6 +473,31 @@ global record vim
       getpath: function(FSPollObj): string
     end
     new_fs_poll: function(): FSPollObj
+
+    record FSEventObj
+      userdata
+
+      is_closing: function(FSEventObj): boolean | string
+      close: function(FSEventObj)
+
+      record Flags
+        -- watch_entry: boolean  -- not implemented on any backend
+        -- stat: boolean         -- not implemented on any backend
+        recursive: boolean
+      end
+
+      record CBEvents
+        change: boolean
+        rename: boolean
+      end
+
+      type CB = function(err: string, filename: string, CBEvents)
+
+      start: function(FSEventObj, string, Flags, CB)
+      stop: function(FSEventObj)
+      getpath: function(FSEventObj): string
+    end
+    new_fs_event: function(): FSEventObj
 
     record FsStatRet
       dev : number
