@@ -37,6 +37,7 @@ local hls: {{string:{string}}} = {
   {GitSignsAddLnVirtLn        = {'GitSignsAddLn'   }},
   {GitSignsChangeVirtLn       = {'GitSignsChangeLn'}},
   {GitSignsDeleteVirtLn       = {'GitGutterDeleteLine', 'SignifyLineDelete', 'DiffDelete'}},
+  {GitSignsVirtLnum           = {'GitSignsDeleteVirtLn'}},
 
   {GitSignsAddLnVirtLnInLine  = {'GitSignsAddLnInline'   }},
   {GitSignsChangeVirtLnInLine = {'GitSignsChangeLnInline'}},

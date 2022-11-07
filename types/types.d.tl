@@ -275,6 +275,12 @@ global record vim
     line: function(string): integer
     join: function({any}, string): string
     getpos: function(string): {integer}
+
+
+    record WinInfo
+      textoff: integer
+    end
+    getwininfo: function(integer): {WinInfo}
     executable: function(string): integer
     exists: function(string): integer
     expand: function(string): string

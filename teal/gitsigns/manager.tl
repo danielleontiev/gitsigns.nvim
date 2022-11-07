@@ -178,16 +178,26 @@ local function clear_deleted(bufnr: integer)
   end
 end
 
+local function pad(len: integer): string
+  return string.rep(' ', len)
+end
+
 function M.show_deleted(bufnr: integer, nsd: integer, hunk: Hunk)
   local virt_lines = {}
+
+  local textoff = vim.fn.getwininfo(api.nvim_get_current_win())[1].textoff
 
   for i, line in ipairs(hunk.removed.lines) do
     local vline = {}
     local last_ecol = 1
 
+    local lnum = tostring(hunk.removed.start + i - 1)
+    vline[#vline+1] = { string.format('%s%s ', pad(textoff-lnum:len()-1), lnum), 'GitSignsVirtLnum'}
+
     if config.word_diff then
       local regions = require('gitsigns.diff_int').run_word_diff(
         {hunk.removed.lines[i]}, {hunk.added.lines[i]})
+
 
       for _, region in ipairs(regions) do
         local rline, scol, ecol = region[1], region[3], region[4]
@@ -205,7 +215,7 @@ function M.show_deleted(bufnr: integer, nsd: integer, hunk: Hunk)
     end
 
     -- Add extra padding so the entire line is highlighted
-    local padding = string.rep(' ', VIRT_LINE_LEN-#line)
+    local padding = pad(VIRT_LINE_LEN-#line)
     vline[#vline+1] = { padding, 'GitSignsDeleteVirtLn'}
 
     virt_lines[i] = vline
@@ -213,11 +223,13 @@ function M.show_deleted(bufnr: integer, nsd: integer, hunk: Hunk)
 
   local topdelete = hunk.added.start == 0 and hunk.type == 'delete'
 
+
   local row = topdelete and 0 or hunk.added.start - 1
   api.nvim_buf_set_extmark(bufnr, nsd, row, -1, {
     virt_lines       = virt_lines,
     -- TODO(lewis6991): Note virt_lines_above doesn't work on row 0 neovim/neovim#16166
     virt_lines_above = hunk.type ~= 'delete' or topdelete,
+    virt_lines_leftcol = true
   })
 end
 
